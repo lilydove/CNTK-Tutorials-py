@@ -1,7 +1,7 @@
 # https://cntk.ai/pythondocs/CNTK_201B_CIFAR-10_ImageHandsOn.html
 # CNTK 201: Part B - Image Understanding
 # Author: wuyi
-# Date: 2018-03-24--04.01
+# Date: 2018-03-24--04.05
 """
 This tutorial shows how to implement image recognition task using convolution network with CNTK v2 Python API.
 You will start with a basic feedforward CNN architecture to classify CIFAR dataset,
@@ -11,6 +11,7 @@ you will implement a VGG net and residual net like the one that won ImageNet com
 
 from IPython.display import Image
 from PIL import Image
+from urllib import urlopen
 
 import matplotlib.pyplot as plt # plt show images
 import matplotlib.image as mpimg # mpimg read images
@@ -164,6 +165,27 @@ def create_basic_model(input, out_dims):
 
     return net
 
+def create_basic_model_terse(input, out_dims):
+
+    with C.layers.default_options(init=C.glorot_uniform(), activation=C.relu):
+        model = C.layers.Sequential([
+            C.layers.For(range(3), lambda i: [
+                C.layers.Convolution((5,5), [32,32,64][i], pad=True),
+                C.layers.MaxPooling((3,3), strides=(2,2))
+                ]),
+            C.layers.Dense(64),
+            C.layers.Dense(out_dims, activation=None)
+        ])
+
+    return model(input)
+
+def create_basic_model_with_dropout(input, out_dims):
+
+    with C.layers.default_options(activation=C.relu, init=C.glorot_uniform()):
+        model = C.layers.Sequential([
+            C.layers.Convolution(5,5), [32,32,64][i], pad=True),
+                C.layers.Convolution((3,3), strides=(2,2))
+                ]),
 
 #------3. Training and Evaluation------
 #
@@ -300,10 +322,47 @@ def train_and_evaluate(reader_train, reader_test, max_epochs, model_func):
 
     return C.softmax(z)
 print (reader_test.stream_infos())
-pred = train_and_evaluate(reader_train,
-                           reader_test,
-                           max_epochs=5,
-                           model_func=create_basic_model)
+#pred = train_and_evaluate(reader_train,
+#                           reader_test,
+#                           max_epochs=5,
+#                           model_func=create_basic_model)
 
+pred_basic_model = train_and_evaluate(reader_train,
+                                      reader_test,
+                                      max_epochs=10,
+                                      model_func=create_basic_model_terse)
+
+#------5. Prediction ------
+# Download a sample image
+# (this is 00014.png from test dataset)
+# Any image of size 32,32 can evaluated
+import pylab
+url = "https://cntk.ai/jup/201/00014.png"
+img = r"E:\ProgramLib\Python\CNTK\testdata\00014.png"
+imgPng = PIL.Image.open(urlopen(url))
+##imgPng.show()
+pylab.show()
+
+myimg = np.array(imgPng, dtype=np.float32)
+#print ('myimg', myimg)
+
+def eval(pred_op, image_data):
+    label_lookup = ["airplane", "automobile", "bird", 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
+    image_mean = 133.0
+    image_data -= image_mean
+    image_data = np.ascontiguousarray(np.transpose(image_data, (2, 0, 1)))
+
+    result = np.squeeze(pred_op.eval({pred_op.arguments[0]:[image_data]}))
+
+    # Return top 3 results:
+    top_count = 3
+    result_indices = (-np.array(result)).argsort()[:top_count]
+
+    print("Top 3 predictions:")
+    for i in range(top_count):
+        print("\tLabel: {:10s}, confidence: {:.2f}%".format(label_lookup[result_indices[i]], result[result_indices[i]]*100))
+
+# Run the evaluation on the down loaded image
+eval(pred_basic_model, myimg)
 
 

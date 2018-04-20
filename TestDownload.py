@@ -13,10 +13,11 @@ scr6 = "https://cntk.ai/jup/201/Conv2D.png"
 scr7 = "https://cntk.ai/jup/201/Conv2DFeatures.png"
 scr8 = "https://cntk.ai/jup/201/MaxPooling.png"
 scr9 = "https://cntk.ai/jup/201/CNN.png"
+scr10 = "https://cntk.ai/jup/201/00014.png"
 
 
-print ('Downloading ' + scr9)
-fname, h = urlretrieve(scr9, 'E:\\ProgramLib\\Python\\CNTK\\testdata\\CNN.png')
+print ('Downloading ' + scr10)
+fname, h = urlretrieve(scr10, 'E:\\ProgramLib\\Python\\CNTK\\testdata\\00014.png')
 print (fname)
 print (h)
 print ('Downloaded successfully')
