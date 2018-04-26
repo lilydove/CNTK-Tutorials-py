@@ -1,7 +1,7 @@
 # https://cntk.ai/pythondocs/CNTK_202_Language_Understanding.html
 # CNTK 202: Language Understanding with Recurrent Networks
 # Author: wuyi
-# Date : 2018-03-36--04-18
+# Date : 2018-03-36
 
 """
 This tutorial shows how to implement a recurrent network to process text, 
@@ -16,14 +16,6 @@ There are 2 parts to this tutorial:
 from __future__ import print_function # Use a function definition from future version (say 3.x from 2.7 interpreter)
 import requests
 import os
-
-import math
-import numpy as np
-
-import cntk as C
-import cntk.tests.test_utils
-cntk.tests.test_utils.set_device_from_pytest_env() # (only needed for our build system)
-C.cntk_py.set_fixed_random_seed(1) # fix a random seed for CNTK components
 
 # ------ 1. Data ------
 filepath = 'E:/ProgramLib/Python/CNTK/testdata/CNTK202/'
@@ -63,29 +55,4 @@ if isDownload :
         download(url, item['file'])
         print("Download completed")
 
-# number of words in vocab, slot labels, and intent labels
-vocab_size = 943
-num_labels = 129
-num_intents = 26
 
-# model dimensions
-input_dim = vocab_size
-label_dim = num_labels
-emb_dim = 150
-hidden_dim = 300
-
-# Create the containers for input feature (x) and the label (y)
-x = C.sequnce.input_variable(vocab_size)
-y = C.sequence.input_variable(num_labels)
-
-def create_model():
-	with C.layers.default_options(initial_state=0.1):
-		return C.layers.Sequential([
-			C.layers.Embedding(emb_dim, name='embed'),
-			C.layers.Recurrence(C.layers.LSTM(hidden_dim), go_backwards=False),
-			C.layers.Dense(num_labels, name='classify')
-		])
-
-		# peek
-		z = create_model()
-		
