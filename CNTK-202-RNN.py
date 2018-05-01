@@ -25,6 +25,11 @@ import cntk.tests.test_utils
 cntk.tests.test_utils.set_device_from_pytest_env() # (only needed for our build system)
 C.cntk_py.set_fixed_random_seed(1) # fix a random seed for CNTK components
 
+#  The parameters to control the program.
+isFast = False
+isTrain = False
+modelFile = r'E:\ProgramLib\Python\CNTK\model\RNN-180429-2000.cmf'
+
 
 # ------ 1. Data ------
 filepath = 'E:/ProgramLib/Python/CNTK/testdata/CNTK202/'
@@ -119,10 +124,10 @@ print (criterion)
 
 def create_criterion_function_preferred(model, labels):
     ce = C.cross_entropy_with_softmax(model, labels)
-    errs = C.classification_error(modle, labels)
+    errs = C.classification_error(model, labels)
     return ce, errs # (model, labels)  -> (loss, error metric)
 
-def train(reader, model_func, max_epoch=10, task='slot_tagging'):
+def train(reader, model_func, max_epochs=10, task='slot_tagging'):
 
     # Instantiate the model function; x is the input (feature) variable
     model = model_func(x)
@@ -150,7 +155,7 @@ def train(reader, model_func, max_epoch=10, task='slot_tagging'):
     learner = C.adam(parameters=model.parameters,
                      lr=lr_schedule,
                      momentum=momentums,
-                     gradient_clippig_threshold_per_sample=15,
+                     gradient_clipping_threshold_per_sample=15,
                      gradient_clipping_with_truncation=True)
 
     # Setup the progress updater
@@ -184,4 +189,70 @@ def do_train():
     z = create_model()
     reader = create_reader(train_data, is_training=True)  #data['train']['file']
     train(reader, z)
-do_train()
+    z.save(modelFile)
+
+if not isTrain :
+    z = C.Function.load(modelFile)  # load the trained model
+    z = z(x)    # feed the model with data
+    print ("Loading model")
+else:
+    do_train()
+
+
+# ------ 4. Evaluation  ------
+def evaluate(reader, model_func, task='slot_tagging'):
+    # Instantiate the model function; x is the input (feature) variable
+    model = model_func(x)
+
+    # Create the loss and error functions
+    loss, label_error  = create_criterion_function_preferred(model, y)
+
+    # process minibatches and perform evaluation
+    process_printer = C.logging.ProgressPrinter(tag='Evaluation', num_epochs=0)
+
+    # Assign the data fields to be read from the input
+    if task == 'slot_tagging':
+        data_map={x: reader.streams.query, y: reader.streams.slot_labels}
+    else:
+        data_map={x: reader.streams.query, y: reader.streams.intent}
+
+    while True:
+        minibatch_size = 500
+        data = reader.next_minibatch(minibatch_size, input_map= data_map) # fetch minibach until we hit the end
+        if not data:
+            break
+
+        evaluator = C.eval.Evaluator(loss, process_printer)
+        evaluator.test_minibatch(data)
+
+    evaluator.summarize_test_progress()
+
+def do_test():
+    test_data = filepath + "atis.test.ctf"
+    reader = create_reader(test_data, is_training=False)
+    evaluate(reader, z)
+
+do_test()
+print (z.classify.b.value)
+
+# ------evaluate a single sequence------
+# load dictionaries
+query_data = filepath + "atis.query.ctf"
+slots_data = filepath + "atis.slots.ctf"
+query_wl = [line.rstrp('\n') for line in open(query_data)]
+slots_wl = [line.rstrp('\n') for line in open(slots_data)]
+
+# let's run a sequence through
+seq = 'BOS flights from new york to seattle EOS'
+w = [query_dict[w] for w in seq.split()], np.float32) # convert to word indices
+print(w)
+onehot = np.zeros([len(w), len(query_dict)], np.float32)
+for t in range(len(w)):
+    onehot[t,w[t]] = 1
+
+# x = C.squence.input_variable(vocab_size)
+pred = z(x).eval({x:[onehot]})[0]
+print(pred.shape)
+best = np.argmax(pred, axis=1)
+print(best)
+li = list(zip(seq.split(),[slots_wl[s] for s in best]))
