@@ -3,6 +3,9 @@
 # A cancer hospital has provided data and wants us to determine 
 # if a patient has a fatal malignant cancer vs. a benign growth
 # features: age and tumor size
+# Author: wuyi
+# Date: 2018-03-28--30
+# 1.The model an be saved.
 
 # Import the relevant componets
 from __future__ import print_function
@@ -75,10 +78,13 @@ def linear_layer(input_var, output_dim):
 	return C.times(input_var, weight_param) + bias_param
 
 # 3------Training------
+
 output_dim = num_output_classes
 z = linear_layer(feature, output_dim)
 label = C.input_variable(num_output_classes, np.float32)
 loss = C.cross_entropy_with_softmax(z, label)
+
+print(z)
 
 # Evaluation
 eval_error= C.classification_error(z, label)
@@ -112,29 +118,36 @@ def print_training_progress(trainer, mb, frequency, verbose=1):
 
 
 #-------Run Training------
-# Initialize the parameters for the trainer
-minibatch_size = 25
-num_samples_to_train = 10000
-num_minibatches_to_train = int(num_samples_to_train / minibatch_size)
+isTrain = False  # not to train and evaluate directly with model trained
+modelFile = r'E:\ProgramLib\Python\CNTK\model\CNTK101-LR-CancerClassifier.cmf'
+if not isTrain :
+	# Load model
+    z = C.Function.load(modelFile)
+    print ("Loading model")
+else:
+    # Initialize the parameters for the trainer
+    minibatch_size = 25
+    num_samples_to_train = 10000
+    num_minibatches_to_train = int(num_samples_to_train / minibatch_size)
 
-from collections import defaultdict
+    from collections import defaultdict
 
-# Run the trainer and perform model training
-training_progress_output_freq = 50
-plotdata = defaultdict(list)
+    # Run the trainer and perform model training
+    training_progress_output_freq = 50
+    plotdata = defaultdict(list)
 
-for i in range(0, num_minibatches_to_train):
-	features, labels = generate_random_data_sample(minibatch_size, input_dim, num_output_classes)
-    # Assign the minibatch data to the input variables and train the model on the minibatch
-	trainer.train_minibatch({feature : features, label : labels})
-	batchsize, loss, error = print_training_progress(trainer, i, training_progress_output_freq, verbose=1)
+    for i in range(0, num_minibatches_to_train):
+        features, labels = generate_random_data_sample(minibatch_size, input_dim, num_output_classes)
+        # Assign the minibatch data to the input variables and train the model on the minibatch
+        trainer.train_minibatch({feature : features, label : labels})
+        batchsize, loss, error = print_training_progress(trainer, i, training_progress_output_freq, verbose=1)
 
-	if not (loss == "NA" or error == "NA"):
-		plotdata["batchsize"].append(batchsize)
-		plotdata["loss"].append(loss)
-		plotdata["error"].append(error)
+        if not (loss == "NA" or error == "NA"):
+            plotdata["batchsize"].append(batchsize)
+            plotdata["loss"].append(loss)
+            plotdata["error"].append(error)
 
-"""
+    """
 Minibatch: 0, Loss: 0.6931, Error: 0.32
 Minibatch: 50, Loss: 0.1884, Error: 0.08
 Minibatch: 100, Loss: 0.4162, Error: 0.12
@@ -144,29 +157,31 @@ Minibatch: 250, Loss: 0.1313, Error: 0.08
 Minibatch: 300, Loss: 0.1012, Error: 0.04
 Minibatch: 350, Loss: 0.1068, Error: 0.04
 Selected CPU as the process wide default device.
-"""
-
+    """
 # Compute the moving average loss to smooth out the noise in SGD
-plotdata["avgloss"] = moving_average(plotdata["loss"])
-plotdata["avgerror"] = moving_average(plotdata["error"])
+    plotdata["avgloss"] = moving_average(plotdata["loss"])
+    plotdata["avgerror"] = moving_average(plotdata["error"])
 
 # Plot the training loss and the training error
-import matplotlib.pyplot as plt
+    import matplotlib.pyplot as plt
 
-plt.figure(1)
-plt.subplot(211)
-plt.plot(plotdata["batchsize"], plotdata["avgloss"], "b--")
-plt.xlabel('Minibatch number')
-plt.ylabel('Loss')
-plt.title('Minibatch run vs. Training loss')
-plt.show()
+    plt.figure(1)
+    plt.subplot(211)
+    plt.plot(plotdata["batchsize"], plotdata["avgloss"], "b--")
+    plt.xlabel('Minibatch number')
+    plt.ylabel('Loss')
+    plt.title('Minibatch run vs. Training loss')
+    plt.show()
 
-plt.subplot(212)
-plt.plot(plotdata["batchsize"], plotdata["avgerror"], 'r--')
-plt.xlabel('Minibatch number')
-plt.ylabel('Label Prediction Error')
-plt.title('Minibatch run vs. Label Prediction Error')
-plt.show()
+    plt.subplot(212)
+    plt.plot(plotdata["batchsize"], plotdata["avgerror"], 'r--')
+    plt.xlabel('Minibatch number')
+    plt.ylabel('Label Prediction Error')
+    plt.title('Minibatch run vs. Label Prediction Error')
+    plt.show()
+
+    # Save model
+
 
 #------Evaluation/Testing------
 #2018-02-08
@@ -174,13 +189,17 @@ plt.show()
 test_minibatch_size = 25
 features, labels = generate_random_data_sample(test_minibatch_size, input_dim, num_output_classes)
 trainer.test_minibatch({feature : features, label : labels})
-
+print (features)
 # prediction/evaluation
 out = C.softmax(z)
-result = out.eval({feature : features})
+if isTrain :
+    result = out.eval({feature : features})
+else:
+    result = out.eval(features)
 print ("Label     :", [np.argmax(label) for label in labels])
 print ("Predicted :", [np.argmax(x) for x in result])
-
+if isTrain:
+    z.save(modelFile)
 #------Visualization------
 # Model parameters
 print(mydict['b'].value)
@@ -191,11 +210,12 @@ weight_matrix = mydict['w'].value
 # Plot the data
 import matplotlib.pyplot as plt
 
+if isTrain :
 # Let 0 represent malignant/red, and 1 represent benign/blue
-colors = ['r' if label == 0 else 'b' for label in labels[:,0]]
-plt.scatter(features[:,0], features[:,1], c=colors)    # draw dots
-plt.plot([0, bias_vector[0]/weight_matrix[0][1]],      # draw continuous curve
+    colors = ['r' if label == 0 else 'b' for label in labels[:,0]]
+    plt.scatter(features[:,0], features[:,1], c=colors)    # draw dots
+    plt.plot([0, bias_vector[0]/weight_matrix[0][1]],      # draw continuous curve
          [bias_vector[1]/weight_matrix[0][0], 0], c = 'g', lw = 3)
-plt.xlabel("Patient age (scaled)")
-plt.ylabel("Tumor size (in cm)")
-plt.show()
+    plt.xlabel("Patient age (scaled)")
+    plt.ylabel("Tumor size (in cm)")
+    plt.show()

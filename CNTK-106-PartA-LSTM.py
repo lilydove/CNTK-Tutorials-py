@@ -169,7 +169,7 @@ loss_summary = []
 start = time.time()
 for epoch in range(0, EPOCHS):
 	for x1, y1 in next_batch(X, Y, "train"):
-		# print (len(x1),x1[:3], len(y1),y1[:3])
+		print (len(x1),x1[:3], len(y1),y1[:3])
 		trainer.train_minibatch({x: x1, l: y1})
 	if epoch % (EPOCHS / 10) == 0:
 		training_loss = trainer.previous_minibatch_loss_average
