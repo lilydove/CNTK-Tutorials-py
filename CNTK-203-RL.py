@@ -27,7 +27,7 @@ if 'TEST_DEVICE' in os.environ:
     if os.environ['TEST_DEVICE'] == 'cpu':
         C.device.try_set_default_device(C.device.cpu())
     else:
-        C.device.try_set_default_device(c.device.gup(0))
+        C.device.try_set_default_device(C.device.gup(0))
 
 env = gym.make('CartPole-v0')
 
@@ -40,6 +40,18 @@ REWARD_TARGET = 30 if isFast else 200
 BATCH_SIZE_BASELINE = 20 if isFast else 50
 
 H = 64 # hidden layer size
+
+class Brain:
+    def __init__(self):
+        self.params = {}
+        self.model, self.trainer, self.loss = self._ceate()
+        # self.model.load_weights("cartpole-basic.h5")
+    
+    def _ceate(self):
+        observation = C.sequence.input_variable(STATE_COUNT, np.float32, name="s")
+        q_target = C.sequence.input_variable(ACTION_COUNT, np.float32, name="q")
+
+        # Following a style similar to Keras
 # ------1.Data------
 
 
